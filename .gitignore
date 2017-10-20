@@ -1,4 +1,10 @@
+
+/.idea/workspace.xml
+/.idea/
 /build*/
 /bin/*
 /doc/*
 !/doc/av_doxygen_config.txt
+/.idea/ArtefactViewer.iml
+/.idea/modules.xml
+/.idea/vcs.xml
