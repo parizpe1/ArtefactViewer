@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2014, Dominic Michael Laurentius
+ * Copyright (c) 2016, Pedro Fernando Arizpe Gomez
+
 
 All rights reserved.
 
@@ -17,54 +18,15 @@ THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE A
 BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
 GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
+*/#ifndef AVHAND_H
+#define AVHAND_H
 
-#ifndef AVLIGHT_H
-#define AVLIGHT_H
-
-#include <QVector3D>
-#include <QMatrix4x4>
-
-class AVLight
-{
-public:
-    AVLight();
-    AVLight(bool isOn, int intensity, float hRot, float vRot, float distToOrigin);
-
-
-    bool getIsOn() const;
-    void setIsOn(bool value);
-
-    int getIntensity() const;
-    void setIntensity(int value);
-
-    float getVRotation() const;
-    void setVRotation(float value);
-
-    float getHRotation() const;
-    void setHRotation(float value);
-
-    float getDistanceToOrigin() const;
-    void setDistanceToOrigin(float value);
-
-    QVector3D getPosition() const;
-
-    QMatrix4x4 getTransformation() const;
-
-private:
-    //private members with getters and setters
-    bool m_isOn;
-    int m_intensity;
-    float m_hRotation;
-    float m_vRotation;
-    float m_distanceToOrigin;
-
-    //private members with getters only
-    QVector3D m_position;
-    QMatrix4x4 m_transformation;
-
-    void calculateTransformation();
-
+struct AVHand{
+    bool            isLeft;
+    int				hState; //Unknown = 0,  NotTracked = 1, Open = 2,   Closed = 3, Lasso = 4
+    double          x;      //x coordinate of the hand where 0 is in the middle of the kinect camera
+    double          y;      //y coordinate of the hand where 0 is in the middle of the kinect camera
+    double          z;      //z coordinate of the hand where 0 is in the middle of the kinect camera
+    int             index;
 };
-
-#endif // AVLIGHT_H
+#endif // AVHAND_H

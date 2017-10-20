@@ -1,14 +1,37 @@
-#include "avcontroller.h"
+/*
+ * Copyright (c) 2014, Dominic Michael Laurentius
+ * Copyright (c) 2016, Pedro Fernando Arizpe Gomez
 
+
+All rights reserved.
+
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.
+
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+#include "avcontroller.h"
 #include "avglwidget.h"
+#include "AVKinector.h"
 #include "avmainwindow.h"
 #include "avmodel.h"
 #include "avplugininterfaces.h"
 #include "avpluginmanager.h"
-
+#include "avpqreader.h"
 #include <QMessageBox>
 #include <QDomDocument>
 #include <QCoreApplication>
+#include "avpointframe.h"
 
 #include <iostream>
 
@@ -18,6 +41,9 @@ AVController::AVController()
 {
     m_mainWindow = AVMainWindow::instance();
     m_glWidget = new AVGLWidget(m_mainWindow);
+    m_pqReader= AVPQReader::instance();
+    int err_code=m_pqReader->Init();
+    std::cout<<"We started the PQReader, the initialization code is "<<err_code<<std::endl;
     m_glWidget->setFocusPolicy(Qt::StrongFocus);
     m_mainWindow->setGLWidget(m_glWidget);
     m_mainWindow->showMaximized();
@@ -28,7 +54,7 @@ AVController::AVController()
 
     //set plugins dir in plugin manager
     QDir pluginsDir = QCoreApplication::applicationDirPath();
-/*
+//small snippet for debugging on different OS
     #if defined(Q_OS_WIN)
         while(pluginsDir.dirName().endsWith("debug", Qt::CaseInsensitive) || pluginsDir.dirName().endsWith("release", Qt::CaseInsensitive))
             pluginsDir.cdUp();
@@ -42,13 +68,26 @@ AVController::AVController()
             pluginsDir.cdUp();
         }
     #endif
-*/
     pluginsDir.cd("plugins");
     m_pluginManager->setPluginsDir(pluginsDir.canonicalPath());
     m_pluginManager->loadPlugins();
-
     m_currentlyOpenFile = QString("");
     m_xmlFileAlreadyExists = false;
+//! Multi-input management through Signal-Slot approach
+    qRegisterMetaType<AVPointFrame>("AVPointFrame");
+    QObject::connect(m_pqReader,SIGNAL(throwPF(AVPointFrame)),
+                     m_glWidget,SLOT(catchPF(AVPointFrame)));
+
+    std::cout<<"connected SigSlot"<<std::endl;
+
+    qRegisterMetaType<AVHand>("AVHand");
+
+    AVKinector *m_Kinector = new AVKinector(m_glWidget);
+    int kinerror=m_Kinector->Init();
+    std::cout<<"We started the Kinector, the initialization code is "<<kinerror<<std::endl;
+    QObject::connect(m_Kinector,SIGNAL(throwKP(AVHand)),
+                     m_glWidget,SLOT(catchKP(AVHand)));
+    m_Kinector->start();
 }
 
 
@@ -57,6 +96,7 @@ AVController::~AVController()
     m_pluginManager->destroy();
     m_model->destroy();
     m_mainWindow->destroy();
+    m_pqReader->destroy();
 }
 
 
@@ -82,7 +122,6 @@ int AVController::readFile(QString filename)
 
     m_mainWindow->initialize();
     m_glWidget->initialize();
-
     QString filePath = fileInfo.path();
     QString fileBaseName = fileInfo.baseName();
     m_currentlyOpenFile = filePath.append("/" +  fileBaseName);
@@ -133,7 +172,8 @@ int AVController::readFile(QString filename)
 
         QDomElement view = root.elementsByTagName("view").at(0).toElement();
         m_glWidget->setCamDistanceToOrigin(view.attribute("camDistanceToOrigin").toFloat());
-        m_glWidget->setMatrixArtefact(QStringToQMatrix4x4(view.attribute("mMatrixArtefact")));        
+        m_glWidget->setMatrixArtefact(QStringToQMatrix4x4(view.attribute("mMatrixArtefact")));
+        m_glWidget->setVRMatrix(QStringToQMatrix4x4(view.attribute("mCamRotateMatrix")));
         m_glWidget->setCamOrigin(QVector3D(QStringToQVector4D(view.attribute("camOrigin"))));
 
         for (int i=0; i < 4; i++)
@@ -180,6 +220,7 @@ int AVController::readFile(QString filename)
         QMatrix4x4 modelMatrix = m_glWidget->getMatrixArtefact();
         modelMatrix.setToIdentity();
         modelMatrix.translate(-m_model->m_centerPoint);
+        modelMatrix.translate(-m_glWidget->getCamOrigin());
         m_glWidget->setMatrixArtefact(modelMatrix);
     }
 
@@ -234,6 +275,7 @@ void AVController::saveXmlFile()
 
         view.setAttribute("camDistanceToOrigin", m_glWidget->getCamDistanceToOrigin());
         view.setAttribute("mMatrixArtefact", QMatrix4x4ToQString(m_glWidget->getMatrixArtefact()));
+        view.setAttribute("mCamRotateMatrix", QMatrix4x4ToQString(m_glWidget->getVRMatrix()));
         view.setAttribute("camOrigin", QVector4DToQString(m_glWidget->getCamOrigin()));
         settings.appendChild(view);
 

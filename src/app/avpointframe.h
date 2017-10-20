@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2014, Dominic Michael Laurentius
+ * Copyright (c) 2016, Pedro Fernando Arizpe Gomez
+
 
 All rights reserved.
 
@@ -19,52 +20,15 @@ GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWE
 LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef AVLIGHT_H
-#define AVLIGHT_H
+#ifndef AVPOINTFRAME_H
+#define AVPOINTFRAME_H
+#include "PQMTClient.h"
+using namespace PQ_SDK_MultiTouch;
 
-#include <QVector3D>
-#include <QMatrix4x4>
-
-class AVLight
-{
-public:
-    AVLight();
-    AVLight(bool isOn, int intensity, float hRot, float vRot, float distToOrigin);
-
-
-    bool getIsOn() const;
-    void setIsOn(bool value);
-
-    int getIntensity() const;
-    void setIntensity(int value);
-
-    float getVRotation() const;
-    void setVRotation(float value);
-
-    float getHRotation() const;
-    void setHRotation(float value);
-
-    float getDistanceToOrigin() const;
-    void setDistanceToOrigin(float value);
-
-    QVector3D getPosition() const;
-
-    QMatrix4x4 getTransformation() const;
-
-private:
-    //private members with getters and setters
-    bool m_isOn;
-    int m_intensity;
-    float m_hRotation;
-    float m_vRotation;
-    float m_distanceToOrigin;
-
-    //private members with getters only
-    QVector3D m_position;
-    QMatrix4x4 m_transformation;
-
-    void calculateTransformation();
-
+struct AVPointFrame{
+    int pf_frame_id;
+    int pf_time_stamp;
+    int pf_moving_point_count;
+    const TouchPoint * pf_moving_point_array;
 };
-
-#endif // AVLIGHT_H
+#endif // AVPOINTFRAME_H

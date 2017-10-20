@@ -1,3 +1,26 @@
+/*
+ * Copyright (c) 2014, Dominic Michael Laurentius
+ * Copyright (c) 2016, Pedro Fernando Arizpe Gomez
+
+
+All rights reserved.
+
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.
+
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
 #include "avmainwindow.h"
 #include "ui_avmainwindow.h"
 
@@ -8,6 +31,8 @@
 #include "avplugininterfaces.h"
 #include "avcontroller.h"
 #include "avoffscreendialog.h"
+#include "avpqreader.h"
+
 
 #include <QKeyEvent>
 #include <QMessageBox>
@@ -58,14 +83,19 @@ void AVMainWindow::setGLWidget(AVGLWidget *glWidget)
 
     initialize();
     m_glWidget->initialize();
+    //! 2016: this widget gives real-time feedback to the user
+    ui->toolBar->addWidget(m_glWidget->AVStatus);
 }
 
 
 //! Initializes the main window and its ui elements
+/*
+*Since 2016 this also initializes the status of the kinect.
+*/
 void AVMainWindow::initialize()
 {
     m_model = AVModel::instance();
-
+    k_Ctrl=false;
     m_model->m_listOfPointClouds.clear();
     m_model->m_listOfPointClouds.append(pointCloud());
     m_model->m_listOfPointClouds.last().color = QColor(Qt::blue);
@@ -91,7 +121,7 @@ void AVMainWindow::setCheckBoxes(bool use_lighting, bool use_vertexColors, bool 
 //! Handles some key shortcuts
 void AVMainWindow::keyPressEvent(QKeyEvent *e)
 {
-    //TODO: Set Artefact Rotation
+    if(e->key()==Qt::Key_Control) k_Ctrl=true;
 
     if (e->key() == Qt::Key_Escape)
         close();
@@ -106,7 +136,7 @@ void AVMainWindow::keyPressEvent(QKeyEvent *e)
     }
     else if (e->key() == Qt::Key_5)
     {
-        on_pushButton_center_clicked();
+        on_pushButton_reset_clicked();
     }
     else if (e->key() == Qt::Key_6 || e->key() == Qt::Key_Right)
     {
@@ -124,6 +154,38 @@ void AVMainWindow::keyPressEvent(QKeyEvent *e)
     {
         on_pushButton_clock_clicked();
     }
+//keyboard shortcuts
+    if(k_Ctrl&&e->key()==Qt::Key_0)//MAReset
+        m_glWidget->resetMatrixArtefact();
+    if(k_Ctrl&&e->key()==Qt::Key_F)//fullscreen
+        on_actionFullscreen_triggered();
+    if(k_Ctrl&&e->key()==Qt::Key_R)//resetProjection
+        m_glWidget->resetVMatrix();
+    if(k_Ctrl&&e->key()==Qt::Key_O)//open
+        on_actionOpen_triggered();
+    if(k_Ctrl&&e->key()==Qt::Key_L)//lights
+        on_checkBox_lightingSwitch_toggled(true);
+    if(k_Ctrl&&e->key()==Qt::Key_S)//save
+        on_actionSave_triggered();
+    if(k_Ctrl&&e->key()==Qt::Key_P)//screenshot
+        on_actionScreenshot_triggered();
+    if(k_Ctrl&&e->key()==Qt::Key_M)//showCursor
+      m_glWidget->setCursor(Qt::ArrowCursor);
+    if(k_Ctrl&&e->key()==Qt::Key_C)//color
+        on_checkBox_vertexColors_toggled(true);
+    if(k_Ctrl&&e->key()==Qt::Key_H)//hideCursor
+        m_glWidget->setCursor(Qt::BlankCursor);
+    if(k_Ctrl&&e->key()==Qt::Key_E)//printMVMatrix
+    {
+        //TODO:write to file
+        qDebug()<<"M "<<m_glWidget->getMatrixArtefact();
+        qDebug()<<"V "<<m_glWidget->getViewMatrix();
+        qDebug()<<"MV "<<m_glWidget->getCurrentMvMatrix();
+        qDebug()<<"MVQ "<<m_glWidget->QuaternionFromMatrix(m_glWidget->getCurrentMvMatrix());
+//        qDebug()<<"Angle Evaluation "<<m_glWidget->evaluateMVAngle(QQuaternion(1,0,0,0));
+//        qDebug()<<"Distance Evaluation "<<m_glWidget->evaluateMVDistance(QVector3D(0,0,0))
+
+    }
 }
 
 
@@ -131,6 +193,7 @@ void AVMainWindow::keyPressEvent(QKeyEvent *e)
 void AVMainWindow::keyReleaseEvent(QKeyEvent *e)
 {
     if (e->key() == Qt::Key_Shift) m_glWidget->setShiftDown(false);
+    if(e->key()==Qt::Key_Control) k_Ctrl=false;
 }
 
 
@@ -474,8 +537,17 @@ void AVMainWindow::on_actionClose_triggered()
     close();
 }
 
+//! toggles Fullscreen
+void AVMainWindow::on_actionFullscreen_triggered()
+{
+    if(!m_instance->isFullScreen())
+        m_instance->showFullScreen();
+    else
+        m_instance->showMaximized();
+}
 
-//! Askes the user for a location to store the screenshot and generates it by grabbing the framebuffer and writing it to disk
+
+//! Asks the user for a location to store the screenshot and generates it by grabbing the framebuffer and writing it to disk
 void AVMainWindow::on_actionScreenshot_triggered()
 {
     QString fileString = QFileDialog::getSaveFileName(this, "Abbild speichern", "", "Bilddateien (*.jpg *.png *.bmp)");
